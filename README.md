@@ -1,4 +1,4 @@
-# Summit Rush v1.7.5
+# Summit Rush v1.7.6
 
 ## v1.7.5 circuit, UI, and race-pace fixes
 
@@ -11,6 +11,17 @@
 - Added short network dead-reckoning so remote cars visually maintain their real speed between snapshots.
 
 Three.js racing game with eight circuits, 12-car grids, landscape mobile controls, customization, single-player career racing, and optional same-Wi-Fi multiplayer through the included Node server.
+
+
+## v1.7.6 — Dynamic AI racing lines
+
+- AI racers no longer snap directly back to a fixed centerline after contact.
+- Every AI driver chooses persistent randomized track positions and changes lines at different intervals.
+- Collision impulses now create lateral momentum, heading disturbance, displaced line targets, and a 1–3 second recovery phase.
+- AI acceleration is temporarily reduced while recovering, so a car that gets knocked wide does not instantly regain its former pace.
+- Corner speed now uses estimated turn radius from near and far look-ahead samples.
+- Broad sweepers can be taken around 200–240 km/h depending on radius and difficulty, while true hairpins still require braking.
+- Difficulty changes corner grip, braking confidence, recovery, and aggression without changing the shared top-speed cap.
 
 ## Vercel / static hosting
 

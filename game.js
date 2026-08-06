@@ -157,9 +157,9 @@ const TRACKS = [
 const AI_NAMES = ['NOVA','BLAZE','KIRA','MASON','ORION','VEGA','RICO','SABLE','JUNO','AXEL','LYNX'];
 
 const DIFFICULTIES = {
-  easy: { id:'easy', name:'Easy', description:'Same top speed, earlier braking and more forgiving corner exits.', cornering:.88, aggression:.72, curvePenalty:3.05, maxSlowdown:.44, acceleration:21.5, braking:31 },
-  medium: { id:'medium', name:'Medium', description:'Same top speed, stronger exits and later braking.', cornering:.95, aggression:.86, curvePenalty:2.68, maxSlowdown:.38, acceleration:24, braking:35 },
-  hard: { id:'hard', name:'Hard', description:'Same top speed, committed corner pace and aggressive recovery.', cornering:1, aggression:1, curvePenalty:2.35, maxSlowdown:.32, acceleration:26.5, braking:39 }
+  easy: { id:'easy', name:'Easy', description:'Same top speed, earlier braking and more forgiving corner exits.', cornering:.88, aggression:.72, lateralGrip:19.5, lineChange:5.2, acceleration:22.5, braking:31 },
+  medium: { id:'medium', name:'Medium', description:'Same top speed, stronger exits and later braking.', cornering:.95, aggression:.86, lateralGrip:21, lineChange:5.8, acceleration:25, braking:35 },
+  hard: { id:'hard', name:'Hard', description:'Same top speed, committed corner pace and aggressive recovery.', cornering:1, aggression:1, lateralGrip:22.5, lineChange:6.4, acceleration:27.5, braking:39 }
 };
 
 const RIM_STYLES = [
@@ -807,7 +807,9 @@ class Racer {
     this.trackT=(1-startOffset/game.track.length+1)%1;this.lap=-1;this.lastIndex=Math.floor(this.trackT*game.track.sampleCount);this.finished=false;this.finishTime=null;
     const difficulty=DIFFICULTIES[game.selectedDifficulty]||DIFFICULTIES.easy;
     this.aiSpeed=this.raceTopSpeed;this.aiTargetSpeed=this.raceTopSpeed;this.skill=difficulty.cornering;this.aggression=difficulty.aggression;
-    this.aiCurvePenalty=difficulty.curvePenalty;this.aiMaxSlowdown=difficulty.maxSlowdown;this.aiAcceleration=difficulty.acceleration;this.aiBraking=difficulty.braking;
+    this.aiLateralGrip=difficulty.lateralGrip||20;this.aiLineChange=difficulty.lineChange||5.6;this.aiAcceleration=difficulty.acceleration;this.aiBraking=difficulty.braking;
+    this.aiLineOffset=lane;this.aiLineTarget=lane;this.aiLineVelocity=0;this.aiLineTimer=.55+Math.random()*1.1;this.aiRecoveryTimer=0;this.aiYawOffset=0;this.aiYawVelocity=0;
+    this.aiDecisionRng=new RNG((0x9e3779b9^Math.imul(aiIndex+1,2654435761)^Math.floor(startOffset*1000))>>>0);
     this.placeOnTrack(this.trackT);
   }
   roadPitch(index){const t=this.game.track.tangents[index];return Math.atan2(t.y,Math.hypot(t.x,t.z));}
@@ -868,21 +870,52 @@ class Racer {
   }
   updateAI(dt,raceActive){
     if(!raceActive||this.finished){this.animateVehicle(dt,0,0);return;}
-    const t=this.trackT,tan=this.game.track.sampleTangent(t,this.tmpTangent),tanAhead=this.game.track.sampleTangent(t+.011,this.tmpAhead),curve=Math.abs(tan.x*tanAhead.z-tan.z*tanAhead.x);
-    // Every difficulty has the exact same straight-line cap as the player.
-    // Difficulty now changes how much speed the AI carries through corners and
-    // how quickly it recovers afterward, eliminating the old 150 km/h ceiling.
-    const effectiveCurve=Math.max(0,curve-.032);
-    const cornerLoss=clamp(effectiveCurve*(this.aiCurvePenalty/Math.max(this.skill,.75)),0,this.aiMaxSlowdown);
-    const target=curve<.05?this.aiSpeed:this.aiSpeed*(1-cornerLoss),delta=target-this.speed,rate=delta>=0?this.aiAcceleration:this.aiBraking;
-    this.speed+=clamp(delta,-rate*dt,rate*dt);this.speed=clamp(this.speed,0,this.aiSpeed);this.trackT+=this.speed*dt/this.game.track.length;
+    const t=this.trackT,trackLength=this.game.track.length,tan=this.game.track.sampleTangent(t,this.tmpTangent);
+    const nearMeters=clamp(14+this.speed*.22,18,30),farMeters=clamp(30+this.speed*.46,38,62);
+    const tanNear=this.game.track.sampleTangent(t+nearMeters/trackLength,this.tmpAhead),tanFar=this.game.track.sampleTangent(t+farMeters/trackLength,this.tmpForward);
+    const nearAngle=Math.acos(clamp(tan.dot(tanNear),-1,1)),farAngle=Math.acos(clamp(tan.dot(tanFar),-1,1));
+    const curvature=Math.max(nearAngle/nearMeters,(farAngle/farMeters)*.84),turnSign=Math.sign(tan.x*tanNear.z-tan.z*tanNear.x);
+
+    // Corner speed now comes from estimated turn radius instead of a raw tangent
+    // difference. Broad sweepers therefore stay near 200+ km/h while genuine
+    // hairpins still require braking.
+    const confidence=1.015+this.aggression*.065;
+    let target=curvature<.00035?this.aiSpeed:Math.sqrt(this.aiLateralGrip/Math.max(curvature,.000001))*confidence;
+    target=clamp(target,this.aiSpeed*.26,this.aiSpeed);
+
+    this.aiRecoveryTimer=Math.max(0,this.aiRecoveryTimer-dt);this.aiLineTimer-=dt;
+    const roadLimit=this.game.track.def.roadWidth*.36;
+    if(this.aiLineTimer<=0&&this.aiRecoveryTimer<=0){
+      const randomLine=this.aiDecisionRng.range(-1,1),cornerBias=turnSign?-turnSign*roadLimit*this.aiDecisionRng.range(.08,.28):0;
+      const randomWeight=curvature>.0045?.46:.82;
+      this.aiLineTarget=clamp(cornerBias+randomLine*roadLimit*randomWeight,-roadLimit,roadLimit);
+      this.aiLineTimer=this.aiDecisionRng.range(.75,2.15);
+    }
+
+    // A hit produces a real recovery phase. The AI keeps the displaced line,
+    // carries lateral momentum and uses reduced acceleration instead of snapping
+    // straight back to its preferred lane on the next frame.
+    const unsettled=this.aiRecoveryTimer>0;
+    if(unsettled){const recoveryProgress=clamp(1-this.aiRecoveryTimer/2.7,0,1);target*=lerp(.82,.96,recoveryProgress);}
+    const delta=target-this.speed,rate=delta>=0?this.aiAcceleration*(unsettled?.58:1):this.aiBraking;
+    this.speed+=clamp(delta,-rate*dt,rate*dt);this.speed=clamp(this.speed,0,this.aiSpeed);this.trackT+=this.speed*dt/trackLength;
     if(this.trackT>=1){this.trackT-=1;this.lap++;if(this.lap>=LAPS_TO_WIN){this.finished=true;this.finishTime=this.game.raceTime;this.game.registerFinish(this);}}
+
+    const lineError=this.aiLineTarget-this.aiLineOffset,lineAccel=clamp(lineError*(unsettled?.62:1.45+this.aggression*.55)-this.aiLineVelocity*(unsettled?.72:1.55),-this.aiLineChange,this.aiLineChange);
+    this.aiLineVelocity=clamp(this.aiLineVelocity+lineAccel*dt,-7.4,7.4);this.aiLineOffset=clamp(this.aiLineOffset+this.aiLineVelocity*dt,-roadLimit,roadLimit);
+
     const p=this.game.track.samplePoint(this.trackT,this.tmpPoint),tng=this.game.track.sampleTangent(this.trackT,this.tmpTangent),n=this.tmpNormal.set(-tng.z,0,tng.x).normalize();
-    const weave=Math.sin(this.trackT*TAU*3+this.aiIndex)*(.18+.16*this.aggression);
-    this.collisionOffset.addScaledVector(this.collisionVelocity,dt);this.collisionVelocity.multiplyScalar(Math.exp(-1.25*dt));this.collisionOffset.multiplyScalar(Math.exp(-.38*dt));
-    const lateral=this.collisionOffset.dot(n),maxLateral=this.game.track.def.roadWidth*.43;if(Math.abs(lateral)>maxLateral)this.collisionOffset.addScaledVector(n,-Math.sign(lateral)*(Math.abs(lateral)-maxLateral)*.55);
-    this.position.copy(p).addScaledVector(n,this.lane+weave).add(this.collisionOffset);this.position.y=p.y+this.rideHeight;this.yaw=Math.atan2(tng.x,tng.z);this.velocity.copy(tng).multiplyScalar(this.speed).add(this.collisionVelocity);this.mesh.position.copy(this.position);
-    const index=Math.floor(this.trackT*this.game.track.sampleCount),turnSign=Math.sign(tng.x*tanAhead.z-tng.z*tanAhead.x);this.applyRoadPose(index,0,0,-clamp(curve*2,0,.075)*turnSign,dt);this.animateVehicle(dt,this.speed,0);this.lastIndex=index;
+    this.collisionOffset.addScaledVector(this.collisionVelocity,dt);
+    this.collisionVelocity.multiplyScalar(Math.exp(-(unsettled?.52:1.65)*dt));
+    this.collisionOffset.multiplyScalar(Math.exp(-(unsettled?.08:.72)*dt));
+    const residualLateral=this.collisionOffset.dot(n),totalLateral=this.aiLineOffset+residualLateral,maxLateral=this.game.track.def.roadWidth*.43;
+    if(Math.abs(totalLateral)>maxLateral){const excess=Math.abs(totalLateral)-maxLateral;this.collisionOffset.addScaledVector(n,-Math.sign(totalLateral)*excess*.78);this.aiLineVelocity*=-.18;this.speed*=.96;}
+
+    this.aiYawOffset+=this.aiYawVelocity*dt;this.aiYawVelocity*=Math.exp(-(unsettled?.62:1.9)*dt);this.aiYawOffset*=Math.exp(-(unsettled?.13:.92)*dt);
+    this.position.copy(p).addScaledVector(n,this.aiLineOffset).add(this.collisionOffset);this.position.y=p.y+this.rideHeight;
+    this.yaw=Math.atan2(tng.x,tng.z)+this.aiYawOffset;this.velocity.copy(tng).multiplyScalar(this.speed).addScaledVector(n,this.aiLineVelocity).add(this.collisionVelocity);this.mesh.position.copy(this.position);
+    const index=Math.floor(this.trackT*this.game.track.sampleCount),visualSteer=clamp(-this.aiLineVelocity/6.5,-1,1);
+    this.applyRoadPose(index,visualSteer,0,-visualSteer*.045,dt);this.animateVehicle(dt,this.speed,visualSteer);this.lastIndex=index;
   }
   animateVehicle(dt,forwardSpeed,steer){const spin=forwardSpeed*dt/Math.max(.25,this.spec.style==='formula'?.39:.4);this.mesh.userData.wheels.forEach((w,i)=>{w.rotation.x-=spin;if(i<2)w.rotation.y=lerp(w.rotation.y,-steer*.28,dt*9);});this.mesh.userData.flames.forEach((f,i)=>{f.material.opacity=lerp(f.material.opacity,this.boosting?.85:0,dt*12);f.scale.y=this.boosting?(1+Math.sin(performance.now()*.03+i)*.2):.3;});}
   updateProgress(index){const n=this.game.track.sampleCount;if(this.lastIndex>n*.82&&index<n*.18&&this.velocity.length()>3){this.lap++;if(this.lap>=LAPS_TO_WIN&&!this.finished){this.finished=true;this.finishTime=this.game.raceTime;this.game.registerFinish(this);this.game.finishRace();}else if(this.lap>=0)this.game.flashMessage(`LAP ${Math.min(this.lap+1,LAPS_TO_WIN)}`);}this.lastIndex=index;}
@@ -1268,11 +1301,26 @@ class Game {
   setCameraImmediate(){const f=new THREE.Vector3(Math.sin(this.player.yaw),0,Math.cos(this.player.yaw)),dist=this.isMobile?5.45:7.2,height=this.isMobile?2.75:3.5,lookAhead=this.isMobile?4.2:5;this.camera.position.copy(this.player.position).addScaledVector(f,-dist).add(new THREE.Vector3(0,height,0));this.camera.lookAt(this.player.position.clone().addScaledVector(f,lookAhead).add(new THREE.Vector3(0,this.isMobile?.82:1,0)));this.camera.fov=this.isMobile?62:68;this.camera.updateProjectionMatrix();}
   updateCountdown(dt){const prev=Math.ceil(this.countdown);this.countdown-=dt;const c=this.countdown;this.ui.lightRig.className='light-rig';if(c>3.1){this.ui.countdown.textContent='3';this.ui.lightRig.classList.add('red');}else if(c>2.1){this.ui.countdown.textContent='2';this.ui.lightRig.classList.add('red');}else if(c>1.1){this.ui.countdown.textContent='1';this.ui.lightRig.classList.add('amber');}else if(c>0){this.ui.countdown.textContent='GO!';this.ui.lightRig.classList.add('green');}if(Math.ceil(c)!==prev){if(c>1)this.audio.beep(420,.12);else if(c>0)this.audio.beep(760,.28,'square',.07);}this.racers.forEach(r=>r.player?r.updatePlayer(dt,this.input,false):r.network?r.updateNetwork(dt):r.updateAI(dt,false));if(c<=0){this.state='racing';this.ui.startLights.classList.add('hidden');this.flashMessage('GO!',700);}}
   updateRace(dt){this.raceTime+=dt;this.player.updatePlayer(dt,this.input,true);for(let i=1;i<this.racers.length;i++){const r=this.racers[i];r.network?r.updateNetwork(dt):r.updateAI(dt,true);}this.resolveCarCollisions(dt);if(this.multiplayerMode){this.networkSendTimer-=dt;if(this.networkSendTimer<=0){this.networkSendTimer=.075;this.multiplayer.sendSnapshot(this.player);}}this.updateCamera(dt);this.hudTimer-=dt;if(this.hudTimer<=0){this.hudTimer=this.performanceMode?.1:.05;this.updateHUD();}}
-  moveRacer(racer,delta){if(racer.player)racer.position.add(delta);else if(racer.network){racer.position.add(delta);racer.targetPosition.addScaledVector(delta,.45);}else{racer.collisionOffset.add(delta);racer.position.add(delta);}racer.mesh.position.copy(racer.position);}
+  moveRacer(racer,delta){
+    if(racer.player)racer.position.add(delta);
+    else if(racer.network){racer.position.add(delta);racer.targetPosition.addScaledVector(delta,.45);}
+    else{
+      const tangent=this.track.sampleTangent(racer.trackT,racer.tmpTangent),normal=racer.tmpNormal.set(-tangent.z,0,tangent.x).normalize(),roadLimit=this.track.def.roadWidth*.4;
+      racer.aiLineOffset=clamp(racer.aiLineOffset+delta.dot(normal),-roadLimit,roadLimit);racer.aiLineTarget=racer.aiLineOffset;
+      racer.trackT=(racer.trackT+delta.dot(tangent)/this.track.length+1)%1;racer.aiRecoveryTimer=Math.max(racer.aiRecoveryTimer,1.05);racer.aiLineTimer=Math.max(racer.aiLineTimer,racer.aiRecoveryTimer+.2);racer.position.add(delta);
+    }
+    racer.mesh.position.copy(racer.position);
+  }
   applyRacerImpulse(racer,impulse){
     if(racer.player){racer.velocity.addScaledVector(impulse,1/racer.mass);racer.yaw+=clamp((impulse.x*Math.cos(racer.yaw)-impulse.z*Math.sin(racer.yaw))*.004,-.045,.045);return;}
     if(racer.network){racer.position.addScaledVector(impulse,.012/racer.mass);racer.targetPosition.addScaledVector(impulse,.008/racer.mass);this.multiplayer?.sendCollision(racer.networkId,impulse);return;}
-    racer.collisionVelocity.addScaledVector(impulse,1/racer.mass);const tangent=this.track.sampleTangent(racer.trackT,this.tmpImpulseTangent),forwardKick=impulse.dot(tangent)/racer.mass;racer.speed=clamp(racer.speed+forwardKick,0,racer.aiSpeed);
+    const tangent=this.track.sampleTangent(racer.trackT,racer.tmpTangent),normal=racer.tmpNormal.set(-tangent.z,0,tangent.x).normalize(),forwardKick=impulse.dot(tangent)/racer.mass,lateralKick=impulse.dot(normal)/racer.mass;
+    racer.collisionVelocity.addScaledVector(impulse,.46/racer.mass);racer.speed=clamp(racer.speed+forwardKick,0,racer.aiSpeed);
+    racer.aiLineVelocity=clamp(racer.aiLineVelocity+lateralKick*.11,-10,10);racer.aiYawVelocity=clamp(racer.aiYawVelocity-lateralKick*.018,-1.25,1.25);
+    const severity=Math.abs(lateralKick)+Math.max(0,-forwardKick)*.35;if(severity>.65){
+      const roadLimit=this.track.def.roadWidth*.36;racer.aiRecoveryTimer=Math.max(racer.aiRecoveryTimer,1.15+Math.min(1.65,severity*.045));
+      racer.aiLineTarget=clamp(racer.aiLineOffset+clamp(lateralKick*.16,-roadLimit*.42,roadLimit*.42),-roadLimit,roadLimit);racer.aiLineTimer=racer.aiRecoveryTimer+.35;
+    }
   }
   resolveCarCollisions(dt){
     const minDistance=2.72,restitution=.18,friction=.72;
