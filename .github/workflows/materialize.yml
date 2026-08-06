@@ -20,9 +20,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo 'Chunk sizes:'
+          wc -c bootstrap/payload.*
+          echo 'Chunk hashes:'
+          sha256sum bootstrap/payload.*
           rm -rf .materialized
           mkdir .materialized
-          cat bootstrap/payload.* | base64 --decode | tar -xzf - -C .materialized
+          cat bootstrap/payload.* > /tmp/summit.b64
+          echo "Combined bytes: $(wc -c < /tmp/summit.b64)"
+          base64 --decode /tmp/summit.b64 > /tmp/summit.tar.gz
+          gzip -t /tmp/summit.tar.gz
+          tar -xzf /tmp/summit.tar.gz -C .materialized
           find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github ! -name bootstrap ! -name .materialized -exec rm -rf {} +
           cp -a .materialized/. .
           rm -rf .materialized bootstrap
