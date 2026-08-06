@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#080a0d" />
+  <title>Summit Rush — Three.js Racing</title>
+  <link rel="stylesheet" href="style.css?v=1.7.4" />
+</head>
+<body>
+  <div id="gameRoot">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="speedFx" aria-hidden="true">
+      <div class="speed-vignette"></div>
+      <div class="speed-lines"></div>
+    </div>
+
+    <section id="homeScreen" class="screen active home-screen">
+      <div class="home-shell">
+        <div class="home-brand">
+          <div class="eyebrow">THREE.JS GRAND PRIX RACING</div>
+          <h1>SUMMIT <span>RUSH</span></h1>
+          <p class="tagline">Race solo or build a twelve-car grid with friends on the same Wi-Fi.</p>
+        </div>
+        <div class="home-actions">
+          <button id="singlePlayerButton" class="home-mode-card">
+            <span class="mode-number">01</span>
+            <div><small>CAREER</small><strong>PLAY</strong><p>Eight road courses, twelve-car grids and saved records.</p></div>
+            <b>→</b>
+          </button>
+          <button id="multiplayerButton" class="home-mode-card multiplayer-card" type="button" disabled aria-disabled="true" aria-describedby="multiplayerAvailability">
+            <span class="mode-number">02</span>
+            <div><small>LOCAL WI-FI</small><strong>MULTIPLAYER</strong><p>Host a room and race friends connected to this server.</p><span id="multiplayerAvailability" class="mode-availability">Checking LAN server…</span></div>
+            <b>→</b>
+          </button>
+        </div>
+        <div id="homeNetworkCard" class="home-network-card">
+          <span>PHONE / TABLET CONNECTION</span>
+          <code id="homePhoneUrl">Starting local network service…</code>
+          <small id="homePhoneHint">Run start.command and open this address on devices using the same Wi-Fi.</small>
+        </div>
+      </div>
+    </section>
+
+    <section id="mainMenu" class="screen">
+      <div class="menu-shell">
+        <header class="brand-row">
+          <div>
+            <button id="singleBackButton" class="back-button" type="button">← HOME</button>
+            <div class="eyebrow">SINGLE PLAYER GARAGE</div>
+            <h1>SUMMIT <span>RUSH</span></h1>
+            <p class="tagline">Grip the road. Break traction. Own the mountain.</p>
+          </div>
+          <div class="header-cards">
+            <div class="save-card">
+              <span>CAREER RECORD</span>
+              <strong id="menuWins">0 WINS</strong>
+              <small id="menuRaces">0 races completed</small>
+            </div>
+            <div id="phoneConnectCard" class="phone-connect-card">
+              <div><span id="phoneConnectStatus">PHONE SERVER</span><code id="phoneUrl">Checking Wi-Fi address…</code><small id="phoneHint">Open this address on your phone.</small></div>
+              <button id="copyPhoneUrl" class="copy-phone-button" type="button">COPY</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="menu-grid">
+          <div class="menu-panel vehicle-panel">
+            <div class="panel-heading">
+              <span>01</span>
+              <div><h2>Choose your machine</h2><p>All cars share the same race top speed; acceleration, grip and drift behavior differ.</p></div>
+            </div>
+            <div id="vehicleCards" class="choice-grid vehicle-grid"></div>
+
+            <div class="showroom-window" aria-label="Vehicle showroom preview">
+              <canvas id="showroomCanvas" aria-label="Live rotating customized vehicle in a detailed garage"></canvas>
+              <div class="showroom-copy">
+                <span id="showroomClass">SUPERCAR · CUSTOM BUILD</span>
+                <strong id="showroomName">Vortex GT</strong>
+                <small>Live 3D garage preview</small>
+              </div>
+              <div class="showroom-scanline"></div>
+            </div>
+
+            <div class="customizer-grid">
+              <div class="paint-controls">
+                <div class="customizer-heading"><span>PAINT LAB</span><small>Presets or full-spectrum color wheels</small></div>
+                <div id="presetColors" class="paint-presets"></div>
+                <div class="color-inputs">
+                  <label><span>BODY</span><input id="bodyColor" type="color" value="#ff4e1f" /></label>
+                  <label><span>TRIM</span><input id="trimColor" type="color" value="#111318" /></label>
+                  <label><span>WHEELS</span><input id="wheelColor" type="color" value="#bfc4ca" /></label>
+                </div>
+              </div>
+              <div class="wheel-controls">
+                <div class="customizer-heading"><span>FORGED RIMS</span><small>Real multi-spoke wheel options</small></div>
+                <div id="rimOptions" class="rim-options"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="menu-panel track-panel">
+            <div class="panel-heading">
+              <span>02</span>
+              <div><h2>Select a circuit</h2><p>Seven complete road courses, including four long-form Grand Prix layouts.</p></div>
+            </div>
+            <div id="trackCards" class="choice-grid track-grid"></div>
+
+            <div class="difficulty-section">
+              <div class="customizer-heading"><span>RACE DIFFICULTY</span><small>Difficulty changes corner pace and aggression—not top speed</small></div>
+              <div id="difficultyCards" class="difficulty-cards"></div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="menu-footer">
+          <div class="controls-strip">
+            <div><kbd>W</kbd><span>Throttle</span></div>
+            <div><kbd>S</kbd><span>Brake / Reverse</span></div>
+            <div><kbd>A</kbd><kbd>D</kbd><span>Steer</span></div>
+            <div><kbd>SHIFT</kbd><span>Turbo / Powerslide</span></div>
+            <div><kbd>ESC</kbd><span>Pause</span></div>
+          </div>
+          <button id="startRaceButton" class="primary-button"><span>START RACE</span><b>→</b></button>
+        </footer>
+      </div>
+    </section>
+
+    <section id="multiplayerScreen" class="screen multiplayer-screen">
+      <div class="multiplayer-shell">
+        <header class="multiplayer-header">
+          <div>
+            <button id="multiBackButton" class="back-button" type="button">← HOME</button>
+            <div class="eyebrow">LOCAL WI-FI MULTIPLAYER</div>
+            <h2>RACE THE ROOM</h2>
+          </div>
+          <div id="multiConnectionStatus" class="connection-pill">CONNECTING</div>
+        </header>
+
+        <div id="multiUsernameStage" class="multi-stage username-stage">
+          <div class="username-card">
+            <span class="stage-number">01</span>
+            <div class="eyebrow">DRIVER PROFILE</div>
+            <h3>Choose a username</h3>
+            <p>Your name appears above your car and on the post-race results sheet.</p>
+            <label for="multiplayerUsername">USERNAME</label>
+            <input id="multiplayerUsername" type="text" maxlength="16" autocomplete="nickname" placeholder="Enter driver name" />
+            <button id="confirmUsernameButton" class="primary-button" type="button">CONTINUE</button>
+          </div>
+        </div>
+
+        <div id="multiRoomsStage" class="multi-stage rooms-stage hidden">
+          <div class="rooms-toolbar">
+            <div><span class="stage-number">02</span><div><div class="eyebrow">ROOM BROWSER</div><h3>Open races on this Wi-Fi</h3></div></div>
+            <button id="hostRoomButton" class="primary-button" type="button">HOST NEW ROOM</button>
+          </div>
+          <div id="roomList" class="room-list"></div>
+          <div id="roomEmpty" class="room-empty"><strong>NO OPEN ROOMS YET</strong><span>Host one here and it will appear automatically for every device on this server.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="multiplayerLobby" class="screen multiplayer-lobby">
+      <div class="lobby-shell">
+        <header class="lobby-header">
+          <div>
+            <button id="leaveRoomButton" class="back-button" type="button">← LEAVE ROOM</button>
+            <div class="eyebrow">MULTIPLAYER PADDOCK</div>
+            <h2 id="lobbyRoomName">SUMMIT ROOM</h2>
+          </div>
+          <div class="lobby-code"><span>ROOM CODE</span><strong id="lobbyRoomCode">----</strong><small id="lobbyRoomState">WAITING FOR DRIVERS</small></div>
+        </header>
+
+        <div class="lobby-grid">
+          <div class="lobby-left">
+            <section class="lobby-panel track-vote-panel">
+              <div class="lobby-panel-heading"><div><span>HOST CIRCUIT</span><h3 id="lobbyTrackName">Alpine Ascent</h3></div><button id="changeLobbyTrackButton" class="small-action" type="button">CHANGE</button></div>
+              <div id="lobbyTrackPreview" class="lobby-track-preview"></div>
+              <div id="lobbyTrackPicker" class="lobby-track-picker hidden"></div>
+              <div class="lobby-ai-difficulty">
+                <div class="lobby-panel-heading compact"><div><span>HOST AI DIFFICULTY</span><h3 id="lobbyDifficultyName">Easy</h3></div><small id="lobbyDifficultyHint">Same top speed · earlier braking</small></div>
+                <div id="lobbyDifficultyCards" class="lobby-difficulty-cards" role="group" aria-label="Multiplayer AI difficulty"></div>
+              </div>
+            </section>
+
+            <section class="lobby-panel lobby-car-panel">
+              <div class="lobby-panel-heading"><div><span>YOUR GARAGE</span><h3>Change car anytime</h3></div></div>
+              <div id="lobbyVehicleCards" class="lobby-vehicle-cards"></div>
+              <div class="lobby-color-row">
+                <div id="lobbyColorPresets" class="lobby-color-presets"></div>
+                <label><span>CUSTOM BODY</span><input id="lobbyBodyColor" type="color" value="#ff4e1f" /></label>
+              </div>
+            </section>
+
+            <button id="readyButton" class="ready-button" type="button"><span>READY UP</span><small>Race begins automatically when every active driver is ready.</small></button>
+            <div id="raceInProgressNotice" class="race-in-progress-notice hidden">A race is currently running. Customize your car here; you will join the next grid.</div>
+          </div>
+
+          <aside class="lobby-panel lobby-roster-panel">
+            <div class="lobby-panel-heading"><div><span>DRIVER ROSTER</span><h3 id="lobbyPlayerCount">1 / 12</h3></div></div>
+            <div id="lobbyPlayerList" class="lobby-player-list"></div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="hud" class="screen hud-screen">
+      <div class="hud-top-left">
+        <div class="hud-chip position-chip"><span>POSITION</span><strong id="positionText">1 / 12</strong></div>
+        <div class="hud-chip lap-chip"><span>LAP</span><strong id="lapText">1 / 3</strong></div>
+        <div class="hud-chip time-chip"><span>TIME</span><strong id="raceTimeText">00:00.000</strong></div>
+      </div>
+
+      <div class="hud-top-right">
+        <div class="minimap-shell">
+          <canvas id="minimap" width="210" height="150"></canvas>
+          <span id="trackNameHud">ALPINE ASCENT</span>
+        </div>
+        <button id="racePauseButton" type="button" class="race-pause-button" aria-label="Pause race">Ⅱ</button>
+      </div>
+
+      <div id="startLights" class="start-lights hidden">
+        <div class="light-rig"><i></i><i></i><i></i><i></i><i></i></div>
+        <strong id="countdownText">3</strong>
+      </div>
+
+      <div class="hud-bottom">
+        <div class="multiplayer-race-label hidden" id="multiplayerRaceLabel"><span>LAN RACE</span><strong id="multiplayerRaceRoom">ROOM</strong></div>
+        <div class="speed-cluster">
+          <div class="boost-meter"><span id="boostFill"></span></div>
+          <div class="speed-row"><div class="gear-readout"><span>GEAR</span><strong id="gearText">N</strong></div><div class="speed-readout"><strong id="speedText">0</strong><span>KM/H</span></div></div>
+          <div id="boostLabel" class="boost-label">BOOST READY</div>
+        </div>
+      </div>
+
+      <div id="mobileControls" class="mobile-controls controls-hidden" aria-label="Touch driving controls">
+        <div id="steeringJoystick" class="steering-joystick" aria-label="Analog steering joystick">
+          <div class="joystick-ring"><div id="joystickThumb" class="joystick-thumb"></div></div>
+          <small>STEER</small>
+        </div>
+        <div id="steeringArrows" class="steering-arrows" aria-label="Left and right steering buttons">
+          <div class="steering-arrow-row">
+            <button type="button" class="touch-button steering-arrow-button" data-control="a" aria-label="Steer left"><span>◀</span><small>LEFT</small></button>
+            <button type="button" class="touch-button steering-arrow-button" data-control="d" aria-label="Steer right"><span>▶</span><small>RIGHT</small></button>
+          </div>
+          <small>STEER</small>
+        </div>
+        <div class="mobile-pedals" aria-label="Throttle and brake controls">
+          <button type="button" class="touch-button boost-button" data-control="shift" aria-label="Turbo boost"><span>⚡</span><small>BOOST</small></button>
+          <button type="button" class="touch-button brake-button" data-control="s" aria-label="Brake or reverse"><span>▼</span><small>BRAKE</small></button>
+          <button type="button" class="touch-button throttle-button" data-control="w" aria-label="Accelerate"><span>▲</span><small>GAS</small></button>
+        </div>
+      </div>
+
+      <div id="raceMessage" class="race-message"></div>
+    </section>
+
+    <section id="pauseMenu" class="screen overlay-screen">
+      <div class="dialog">
+        <div class="eyebrow">RACE PAUSED</div>
+        <h2>Take a breath.</h2>
+        <div class="pause-settings" aria-label="Touch steering settings">
+          <div class="pause-setting-heading"><span>TOUCH STEERING</span><small>Choose the control style used on phones and tablets.</small></div>
+          <div class="steering-mode-options" role="group" aria-label="Touch steering style">
+            <button id="steeringModeJoystick" class="steering-mode-button" type="button" aria-pressed="true"><strong>JOYSTICK</strong><small>Analog steering</small></button>
+            <button id="steeringModeArrows" class="steering-mode-button" type="button" aria-pressed="false"><strong>LEFT / RIGHT</strong><small>Digital buttons</small></button>
+          </div>
+        </div>
+        <button id="resumeButton" class="primary-button">RESUME</button>
+        <button id="restartButton" class="secondary-button">RESTART RACE</button>
+        <button id="quitButton" class="secondary-button">RETURN TO GARAGE</button>
+      </div>
+    </section>
+
+    <section id="resultsMenu" class="screen overlay-screen">
+      <div class="dialog results-dialog">
+        <div id="resultEyebrow" class="eyebrow">RACE COMPLETE</div>
+        <h2 id="resultTitle">VICTORY</h2>
+        <div class="result-grid">
+          <div><span>FINISH</span><strong id="resultPosition">1ST</strong></div>
+          <div><span>TIME</span><strong id="resultTime">00:00.000</strong></div>
+          <div><span id="resultThirdLabel">CAREER WINS</span><strong id="resultWins">1</strong></div>
+        </div>
+        <div id="standings" class="standings"></div>
+        <button id="raceAgainButton" class="primary-button">RACE AGAIN</button>
+        <button id="multiplayerNextButton" class="primary-button hidden">NEXT — RETURN TO ROOM</button>
+        <button id="garageButton" class="secondary-button">RETURN TO GARAGE</button>
+      </div>
+    </section>
+
+    <section id="rotateOverlay" class="rotate-overlay">
+      <div class="rotate-phone-icon">↻</div>
+      <strong>ROTATE TO LANDSCAPE</strong>
+      <span>Summit Rush is designed to race and navigate sideways.</span>
+    </section>
+
+    <div id="loading" class="loading-screen">
+      <div class="loader-mark"></div>
+      <strong>BUILDING THE GRID</strong>
+      <span>Loading twelve-car racing, local multiplayer and track geometry…</span>
+    </div>
+  </div>
+
+  <script type="module" src="game.js?v=1.7.4"></script>
+</body>
+</html>

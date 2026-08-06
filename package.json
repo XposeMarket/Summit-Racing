@@ -1,0 +1,12 @@
+{
+  "name": "summit-rush-threejs-racer",
+  "version": "1.7.4",
+  "private": true,
+  "description": "Landscape-first Three.js racing game with 12-car grids, eight circuits, customization, switchable joystick/arrow touch controls, corrected elevation alignment, close mobile chase camera, host-selected AI difficulty, a Spa-Francorchamps-inspired Ardennes circuit, hosted single-player deployment detection, and same-Wi-Fi room multiplayer.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --check game.js && node --check server.js"
+  },
+  "license": "MIT"
+}
