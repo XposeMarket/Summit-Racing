@@ -408,7 +408,8 @@ body.performance-mode .tagline::after { content: "  ·  PERFORMANCE MODE"; color
 .difficulty-card strong { display: block; margin-bottom: 5px; font-family: "Arial Narrow", "Roboto Condensed", Impact, sans-serif; font-size: 19px; font-style: italic; text-transform: uppercase; }
 .difficulty-card span { display: block; color: rgba(255,255,255,.45); font-size: 8px; line-height: 1.35; }
 .difficulty-card:hover, .difficulty-card.selected { border-color: var(--orange); background: rgba(255,90,31,.13); }
-.track-panel .track-grid { max-height: 610px; overflow-y: auto; padding-right: 4px; }
+.track-panel { align-self: start; }
+.track-panel .track-grid { max-height: 360px; overflow-y: auto; padding-right: 4px; }
 .track-panel .track-grid::-webkit-scrollbar { width: 4px; }
 .track-panel .track-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 9px; }
 .speed-row { display: flex; align-items: flex-end; justify-content: flex-end; gap: 12px; }

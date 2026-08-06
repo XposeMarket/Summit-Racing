@@ -1,4 +1,14 @@
-# Summit Rush v1.7.4
+# Summit Rush v1.7.5
+
+## v1.7.5 circuit, UI, and race-pace fixes
+
+- Rebuilt the Spa start sector so the grid begins on a long straight instead of at the apex of the opening corner.
+- Widened the La Source-style hairpin and smoothed its approach and exit.
+- Realigned and moved the Spa pit building completely outside the racing surface.
+- Limited the desktop circuit selector to three visible cards with vertical scrolling.
+- Hard-clamped every human car to the same normal forward-speed cap when boost is inactive.
+- AI reaches the full shared cap on genuine straights; difficulty still changes corner pace, braking, recovery, and aggression.
+- Added short network dead-reckoning so remote cars visually maintain their real speed between snapshots.
 
 Three.js racing game with eight circuits, 12-car grids, landscape mobile controls, customization, single-player career racing, and optional same-Wi-Fi multiplayer through the included Node server.
 

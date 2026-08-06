@@ -140,16 +140,16 @@ const TRACKS = [
     description: 'A Spa-inspired forest road course with a plunging opening sector, the Eau Rouge–Raidillon climb, a long Kemmel-style straight, fast sweepers and a final chicane.',
     theme: 'spa', roadWidth: 18.8, scaleXZ: 1.25, flowCount: 180, smoothingPasses: 1, smoothingRadius: 2,
     points: [
-      [-314.1,28,202.5],[-292.5,24,162],[-270,18,108],[-244.8,13,54],[-223.2,12,25.2],[-200.7,18,4.5],[-175.5,25,-11.7],[-139.5,37,-36],
-      [-94.5,49,-64.8],[-36,56,-99],[27,59,-135],[90,61,-171],[144,62,-202.5],[162,62,-211.5],[180,61,-189],[198,60,-181.8],
-      [220.5,60,-202.5],[243,60,-208.8],[263.7,58,-190.8],[288,55,-166.5],[310.5,52,-139.5],[315,49,-117],[304.2,47,-104.4],[288,46,-103.5],
-      [270,44,-121.5],[252,42,-144],[229.5,40,-160.2],[207,38,-153],[180,36,-139.5],[148.5,34,-121.5],[117,32,-103.5],[94.5,30,-81],
-      [82.8,28,-55.8],[85.5,27,-31.5],[99,26,-9],[126,25,2.7],[162,24,8.1],[202.5,23,13.5],[227.7,22,27],[243,21,49.5],
-      [244.8,20,72],[238.5,19,91.8],[256.5,19,100.8],[288,18,105.3],[319.5,18,112.5],[331.2,17,130.5],[324,17,157.5],[310.5,18,184.5],
-      [288,19,202.5],[256.5,20,211.5],[225,21,207],[189,22,190.8],[153,23,171],[117,24,148.5],[81,25,121.5],[45,26,90],
+      [225,21,207],[189,22,190.8],[153,23,171],[117,24,148.5],[81,25,121.5],[45,26,90],
       [18,27,63],[0,28,45],[-19.8,29,37.8],[-40.5,30,43.2],[-63,31,56.7],[-85.5,31,67.5],[-108,31,72],[-135,31,76.5],
-      [-155.7,30,72],[-169.2,30,81],[-162,29,97.2],[-175.5,29,112.5],[-193.5,29,121.5],[-207,28,135],[-229.5,28,148.5],[-256.5,28,163.8],
-      [-283.5,28,180],[-306,28,198]
+      [-155.7,30,72],[-169.2,30,81],[-162,29,97.2],[-175.5,29,112.5],[-193.5,29,121.5],[-218,28.5,137],[-246,28,153],[-278,28,169],
+      [-309,27.5,181],[-336,26,176],[-352,24,158],[-359,21,132],[-355,18,103],[-342,15,74],[-322,13,48],[-296,13,27],
+      [-266,16,10],[-232,21,-4],[-194,29,-23],[-139.5,37,-36],[-94.5,49,-64.8],[-36,56,-99],[27,59,-135],[90,61,-171],
+      [144,62,-202.5],[162,62,-211.5],[180,61,-189],[198,60,-181.8],[220.5,60,-202.5],[243,60,-208.8],[263.7,58,-190.8],[288,55,-166.5],
+      [310.5,52,-139.5],[315,49,-117],[304.2,47,-104.4],[288,46,-103.5],[270,44,-121.5],[252,42,-144],[229.5,40,-160.2],[207,38,-153],
+      [180,36,-139.5],[148.5,34,-121.5],[117,32,-103.5],[94.5,30,-81],[82.8,28,-55.8],[85.5,27,-31.5],[99,26,-9],[126,25,2.7],
+      [162,24,8.1],[202.5,23,13.5],[227.7,22,27],[243,21,49.5],[244.8,20,72],[238.5,19,91.8],[256.5,19,100.8],[288,18,105.3],
+      [319.5,18,112.5],[331.2,17,130.5],[324,17,157.5],[310.5,18,184.5],[288,19,202.5],[256.5,20,211.5]
     ]
   }
 ];
@@ -711,7 +711,7 @@ class RaceTrack {
     const shell=new THREE.Mesh(new THREE.BoxGeometry(34,4.8,7),concrete);shell.position.y=2.4;pit.add(shell);
     for(let x=-14;x<=14;x+=4){const window=new THREE.Mesh(new THREE.BoxGeometry(2.7,1.25,.08),glass);window.position.set(x,3.1,3.55);pit.add(window);}
     const canopy=new THREE.Mesh(new THREE.BoxGeometry(38,.3,8.2),red);canopy.position.y=5;pit.add(canopy);
-    pit.position.copy(start).addScaledVector(normal,-(this.def.roadWidth*.5+8));pit.position.y=this.groundHeight(pit.position.x,pit.position.z);pit.rotation.y=Math.atan2(tan.x,tan.z);this.group.add(pit);
+    pit.position.copy(start).addScaledVector(normal,-(this.def.roadWidth*.5+18)).addScaledVector(tan,-5);pit.position.y=this.groundHeight(pit.position.x,pit.position.z);pit.rotation.y=Math.atan2(-tan.z,tan.x);this.group.add(pit);
 
     const standMat=this.game.performanceMode?new THREE.MeshLambertMaterial({color:0x7c8586}):new THREE.MeshStandardMaterial({color:0x7c8586,metalness:.18,roughness:.72});
     for(const idx of [7,10,33]){
@@ -802,11 +802,11 @@ class Racer {
     const custom=customizationOverride||(player?game.getCustomization(spec):{bodyColor:aiLivery[0],trimColor:aiLivery[1],wheelColor:aiLivery[2],rimStyle:RIM_STYLES[aiIndex%RIM_STYLES.length].id});
     this.mesh=createVehicle(spec,player,!player,custom);game.scene.add(this.mesh);
     this.position=new THREE.Vector3();this.velocity=new THREE.Vector3();this.collisionOffset=new THREE.Vector3();this.collisionVelocity=new THREE.Vector3();
-    this.mass=spec.style==='rally'?1.12:spec.style==='formula'?.96:1.05;this.raceTopSpeed=RACE_TOP_SPEED;this.rideHeight=-.17;this.yaw=0;this.speed=0;this.boost=1;this.boosting=false;this.gear=1;
+    this.mass=spec.style==='rally'?1.12:spec.style==='formula'?.96:1.05;this.raceTopSpeed=spec.topSpeed||RACE_TOP_SPEED;this.rideHeight=-.17;this.yaw=0;this.speed=0;this.boost=1;this.boosting=false;this.gear=1;
     this.tmpPoint=new THREE.Vector3();this.tmpTangent=new THREE.Vector3();this.tmpAhead=new THREE.Vector3();this.tmpNormal=new THREE.Vector3();this.tmpForward=new THREE.Vector3();this.tmpRight=new THREE.Vector3();this.poseForward=new THREE.Vector3();this.poseRight=new THREE.Vector3();this.poseUp=new THREE.Vector3();this.poseMatrix=new THREE.Matrix4();this.poseQuaternion=new THREE.Quaternion();this.poseLeanQuaternion=new THREE.Quaternion();this.poseEuler=new THREE.Euler();
     this.trackT=(1-startOffset/game.track.length+1)%1;this.lap=-1;this.lastIndex=Math.floor(this.trackT*game.track.sampleCount);this.finished=false;this.finishTime=null;
     const difficulty=DIFFICULTIES[game.selectedDifficulty]||DIFFICULTIES.easy;
-    this.aiSpeed=RACE_TOP_SPEED;this.aiTargetSpeed=RACE_TOP_SPEED;this.skill=difficulty.cornering;this.aggression=difficulty.aggression;
+    this.aiSpeed=this.raceTopSpeed;this.aiTargetSpeed=this.raceTopSpeed;this.skill=difficulty.cornering;this.aggression=difficulty.aggression;
     this.aiCurvePenalty=difficulty.curvePenalty;this.aiMaxSlowdown=difficulty.maxSlowdown;this.aiAcceleration=difficulty.acceleration;this.aiBraking=difficulty.braking;
     this.placeOnTrack(this.trackT);
   }
@@ -855,13 +855,16 @@ class Racer {
     const grip=offroad?3.35:(driftRequested?1.35:this.spec.grip),targetSide=driftRequested?sideSpeed*.94:0;
     this.velocity.addScaledVector(right,(targetSide-sideSpeed)*clamp(grip*dt,0,1));
     const rolling=offroad?.085:(.038+.00062*speedAbs);this.velocity.multiplyScalar(Math.exp(-rolling*dt));if(offroad)this.velocity.multiplyScalar(Math.exp(-.18*dt));
-    if(this.velocity.length()>maxSpeed)this.velocity.setLength(lerp(this.velocity.length(),maxSpeed,clamp(dt*2.4,0,1)));
+    // Clamp the forward component itself so all human cars share the exact cap.
+    const cappedForward=this.velocity.dot(forward);
+    if(cappedForward>maxSpeed)this.velocity.addScaledVector(forward,maxSpeed-cappedForward);
+    if(cappedForward<-this.raceTopSpeed*.34)this.velocity.addScaledVector(forward,-this.raceTopSpeed*.34-cappedForward);
     this.position.addScaledVector(this.velocity,dt);
     const snap=this.game.track.nearestIndex(this.position,this.lastIndex),center=this.game.track.samples[snap.index],normal=this.game.track.normals[snap.index],dx=this.position.x-center.x,dz=this.position.z-center.z,signed=dx*normal.x+dz*normal.z,hardLimit=this.game.track.def.roadWidth*.9;
     if(Math.abs(signed)>hardLimit){const push=Math.abs(signed)-hardLimit;this.position.addScaledVector(normal,-Math.sign(signed)*push*.82);this.velocity.multiplyScalar(.78);this.game.cameraShake=Math.max(this.game.cameraShake,.28);}
     this.position.y=lerp(this.position.y,center.y+this.rideHeight,clamp(dt*18,0,1));this.mesh.position.copy(this.position);
     this.applyRoadPose(snap.index,steer,(throttle-brake)*-.018,-steer*clamp(speedRatio,0,1)*.07,dt);
-    this.animateVehicle(dt,forwardSpeed,steer);this.updateProgress(snap.index);this.speed=Math.max(0,forwardSpeed);this.gear=this.game.audio.update(clamp(speedAbs/this.raceTopSpeed,0,1.35),throttle,this.boosting,raceActive);
+    const resolvedForwardSpeed=this.velocity.dot(forward);this.animateVehicle(dt,resolvedForwardSpeed,steer);this.updateProgress(snap.index);this.speed=Math.max(0,resolvedForwardSpeed);this.gear=this.game.audio.update(clamp(Math.abs(resolvedForwardSpeed)/this.raceTopSpeed,0,1.35),throttle,this.boosting,raceActive);
   }
   updateAI(dt,raceActive){
     if(!raceActive||this.finished){this.animateVehicle(dt,0,0);return;}
@@ -869,8 +872,9 @@ class Racer {
     // Every difficulty has the exact same straight-line cap as the player.
     // Difficulty now changes how much speed the AI carries through corners and
     // how quickly it recovers afterward, eliminating the old 150 km/h ceiling.
-    const cornerLoss=clamp(curve*(this.aiCurvePenalty/Math.max(this.skill,.75)),0,this.aiMaxSlowdown);
-    const target=this.aiSpeed*(1-cornerLoss),delta=target-this.speed,rate=delta>=0?this.aiAcceleration:this.aiBraking;
+    const effectiveCurve=Math.max(0,curve-.032);
+    const cornerLoss=clamp(effectiveCurve*(this.aiCurvePenalty/Math.max(this.skill,.75)),0,this.aiMaxSlowdown);
+    const target=curve<.05?this.aiSpeed:this.aiSpeed*(1-cornerLoss),delta=target-this.speed,rate=delta>=0?this.aiAcceleration:this.aiBraking;
     this.speed+=clamp(delta,-rate*dt,rate*dt);this.speed=clamp(this.speed,0,this.aiSpeed);this.trackT+=this.speed*dt/this.game.track.length;
     if(this.trackT>=1){this.trackT-=1;this.lap++;if(this.lap>=LAPS_TO_WIN){this.finished=true;this.finishTime=this.game.raceTime;this.game.registerFinish(this);}}
     const p=this.game.track.samplePoint(this.trackT,this.tmpPoint),tng=this.game.track.sampleTangent(this.trackT,this.tmpTangent),n=this.tmpNormal.set(-tng.z,0,tng.x).normalize();
@@ -900,7 +904,7 @@ class NetworkRacer {
   constructor(game,data,lane=0,startOffset=0){
     this.game=game;this.network=true;this.networkId=data.id;this.name=data.name;this.player=false;this.spec=VEHICLES[data.vehicleIndex||0];
     this.mesh=createVehicle(this.spec,false,game.performanceMode||game.isMobile,data.customization);game.scene.add(this.mesh);
-    this.position=new THREE.Vector3();this.targetPosition=new THREE.Vector3();this.velocity=new THREE.Vector3();this.targetVelocity=new THREE.Vector3();
+    this.position=new THREE.Vector3();this.targetPosition=new THREE.Vector3();this.velocity=new THREE.Vector3();this.targetVelocity=new THREE.Vector3();this.snapshotVelocity=new THREE.Vector3();
     this.poseForward=new THREE.Vector3();this.poseRight=new THREE.Vector3();this.poseUp=new THREE.Vector3();this.poseMatrix=new THREE.Matrix4();this.poseQuaternion=new THREE.Quaternion();
     this.mass=this.spec.style==='rally'?1.12:this.spec.style==='formula'?.96:1.05;this.yaw=0;this.targetYaw=0;this.targetPitch=0;this.targetRoll=0;this.speed=0;this.lap=-1;this.finished=false;this.finishTime=null;this.boosting=false;
     this.trackT=(1-startOffset/game.track.length+1)%1;this.lastIndex=Math.floor(this.trackT*game.track.sampleCount);this.networkProgress=this.trackT;this.lastSnapshotAt=performance.now();
@@ -917,13 +921,20 @@ class NetworkRacer {
     this.poseMatrix.makeBasis(this.poseRight,this.poseUp,this.poseForward);this.poseQuaternion.setFromRotationMatrix(this.poseMatrix);this.mesh.quaternion.slerp(this.poseQuaternion,clamp(dt*14,0,1));
   }
   applySnapshot(data){
-    this.targetPosition.set(data.x,data.y,data.z);this.targetYaw=data.yaw;this.targetPitch=data.pitch||0;this.targetRoll=data.roll||0;this.speed=data.speed||0;this.lap=data.lap||0;this.networkProgress=Number.isFinite(data.progress)?data.progress:this.networkProgress;this.boosting=!!data.boosting;this.lastSnapshotAt=performance.now();
+    const now=performance.now(),elapsed=clamp((now-this.lastSnapshotAt)/1000,.025,.22),nextX=Number(data.x)||0,nextY=Number(data.y)||0,nextZ=Number(data.z)||0;
+    this.snapshotVelocity.set((nextX-this.targetPosition.x)/elapsed,(nextY-this.targetPosition.y)/elapsed,(nextZ-this.targetPosition.z)/elapsed);
+    const reportedSpeed=clamp(Math.max(0,Number(data.speed)||0),0,RACE_TOP_SPEED+(data.boosting?this.spec.boostPower:0));
+    const planar=Math.hypot(this.snapshotVelocity.x,this.snapshotVelocity.z),predictionCap=reportedSpeed>0?reportedSpeed*1.12:RACE_TOP_SPEED;
+    if(planar>predictionCap&&planar>0)this.snapshotVelocity.multiplyScalar(predictionCap/planar);
+    if(planar<reportedSpeed*.55)this.snapshotVelocity.set(Math.sin(data.yaw)*reportedSpeed,0,Math.cos(data.yaw)*reportedSpeed);
+    this.targetVelocity.lerp(this.snapshotVelocity,.72);this.targetPosition.set(nextX,nextY,nextZ);this.targetYaw=data.yaw;this.targetPitch=data.pitch||0;this.targetRoll=data.roll||0;this.speed=reportedSpeed;this.lap=data.lap||0;this.networkProgress=Number.isFinite(data.progress)?data.progress:this.networkProgress;this.boosting=!!data.boosting;this.lastSnapshotAt=now;
   }
   updateNetwork(dt){
-    const alpha=1-Math.exp(-dt*11);this.position.lerp(this.targetPosition,alpha);this.mesh.position.copy(this.position);
+    this.targetPosition.addScaledVector(this.targetVelocity,dt);
+    const alpha=1-Math.exp(-dt*16);this.position.lerp(this.targetPosition,alpha);this.mesh.position.copy(this.position);
     let dy=this.targetYaw-this.yaw;while(dy>Math.PI)dy-=TAU;while(dy<-Math.PI)dy+=TAU;this.yaw+=dy*alpha;
     this.applyRoadPose(dt);
-    this.velocity.set(Math.sin(this.yaw)*this.speed,0,Math.cos(this.yaw)*this.speed);
+    this.velocity.copy(this.targetVelocity);if(this.velocity.lengthSq()<.01)this.velocity.set(Math.sin(this.yaw)*this.speed,0,Math.cos(this.yaw)*this.speed);
     const spin=this.speed*dt/.4;this.mesh.userData.wheels.forEach(w=>w.rotation.x-=spin);
   }
   progress(){return this.networkProgress;}
