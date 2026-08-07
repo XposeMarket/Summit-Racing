@@ -1,4 +1,16 @@
-# Summit Rush v1.7.7
+# Summit Rush v1.7.8
+
+
+## v1.7.8 — Mobile HD graphics
+
+- Added **Mobile Graphics** in the pause settings with Performance and HD modes.
+- HD is the default on capable phones; constrained phones stay on the lighter profile unless HD is chosen manually.
+- Raised mobile internal render resolution from the old sub-1.0 pixel ratio to an adaptive 0.95–1.25 range on capable phones.
+- Enabled antialiasing in Mobile HD mode for much cleaner car, barrier, road-edge and building silhouettes.
+- Raised texture anisotropic filtering from 2x to 8x in HD mode so asphalt, grass and trackside textures stay sharper at shallow camera angles.
+- Raised the mobile showroom render resolution as well.
+- Adaptive quality can still reduce resolution when frame rate falls, rather than forcing a permanently blurry image.
+- v1.7.7 larger joystick/arrows and closer mobile chase camera remain included.
 
 
 ## v1.7.7 — Larger mobile controls + closer camera

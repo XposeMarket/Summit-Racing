@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#080a0d" />
   <title>Summit Rush — Three.js Racing</title>
-  <link rel="stylesheet" href="style.css?v=1.7.7" />
+  <link rel="stylesheet" href="style.css?v=1.7.8" />
 </head>
 <body>
   <div id="gameRoot">
@@ -267,6 +267,13 @@
             <button id="steeringModeArrows" class="steering-mode-button" type="button" aria-pressed="false"><strong>LEFT / RIGHT</strong><small>Digital buttons</small></button>
           </div>
         </div>
+        <div class="pause-settings mobile-graphics-settings" aria-label="Mobile graphics settings">
+          <div class="pause-setting-heading"><span>MOBILE GRAPHICS</span><small>HD is sharper; Performance protects frame rate on older phones.</small></div>
+          <div class="steering-mode-options graphics-mode-options" role="group" aria-label="Mobile graphics quality">
+            <button id="mobileGraphicsPerformance" class="steering-mode-button" type="button" aria-pressed="false"><strong>PERFORMANCE</strong><small>Lower resolution</small></button>
+            <button id="mobileGraphicsHd" class="steering-mode-button" type="button" aria-pressed="true"><strong>HD</strong><small>Sharper image + filtering</small></button>
+          </div>
+        </div>
         <button id="resumeButton" class="primary-button">RESUME</button>
         <button id="restartButton" class="secondary-button">RESTART RACE</button>
         <button id="quitButton" class="secondary-button">RETURN TO GARAGE</button>
@@ -302,6 +309,6 @@
     </div>
   </div>
 
-  <script type="module" src="game.js?v=1.7.7"></script>
+  <script type="module" src="game.js?v=1.7.8"></script>
 </body>
 </html>

@@ -17,18 +17,24 @@ function detectDeviceProfile() {
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (isMac && navigator.maxTouchPoints > 1);
   const constrainedMac = isMac && !isIOS && ((memory > 0 && memory <= 8) || cores <= 8);
   const lowEndMobile = isMobile && ((memory > 0 && memory <= 4) || cores <= 4);
-  const performanceMode = forced === 'performance' || (forced !== 'high' && (isMobile || constrainedMac));
-  const maxRenderScale = isMobile ? (lowEndMobile ? 0.7 : 0.8) : (performanceMode ? 0.9 : 1.45);
-  const minRenderScale = isMobile ? (lowEndMobile ? 0.5 : 0.58) : (performanceMode ? 0.68 : 1);
+  const storedMobileQuality = localStorage.getItem('summitRushMobileGraphics');
+  const mobileHd = isMobile && forced !== 'performance' && (forced === 'high' || forced === 'hd' || storedMobileQuality === 'hd' || (!lowEndMobile && storedMobileQuality !== 'performance'));
+  // Mobile HD keeps the lightweight scene/material profile, but raises actual raster
+  // resolution, enables MSAA and improves texture filtering. This is far cheaper than
+  // switching every object back to the full desktop rendering path.
+  const performanceMode = forced === 'performance' || (forced !== 'high' && forced !== 'hd' && (isMobile || constrainedMac));
+  const maxRenderScale = isMobile ? (mobileHd ? (lowEndMobile ? 1.05 : 1.25) : (lowEndMobile ? 0.72 : 0.86)) : (performanceMode ? 0.9 : 1.45);
+  const minRenderScale = isMobile ? (mobileHd ? (lowEndMobile ? 0.82 : 0.95) : (lowEndMobile ? 0.55 : 0.68)) : (performanceMode ? 0.68 : 1);
   return {
     isMobile,
     isIOS,
     lowEndMobile,
+    mobileHd,
     performanceMode,
     memory,
     cores,
-    targetFps: isMobile ? (lowEndMobile ? 34 : 40) : (performanceMode ? 45 : 60),
-    menuFps: isMobile ? 20 : (performanceMode ? 24 : 60),
+    targetFps: isMobile ? (mobileHd ? (lowEndMobile ? 32 : 38) : (lowEndMobile ? 34 : 40)) : (performanceMode ? 45 : 60),
+    menuFps: isMobile ? (mobileHd ? 24 : 20) : (performanceMode ? 24 : 60),
     maxRenderScale,
     minRenderScale
   };
@@ -202,7 +208,7 @@ function makeCanvasTexture(size, painter, repeatX = 1, repeatY = 1) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = DEVICE_PROFILE.performanceMode ? 2 : 8;
+  texture.anisotropy = DEVICE_PROFILE.mobileHd ? 8 : (DEVICE_PROFILE.performanceMode ? 2 : 8);
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -1057,17 +1063,17 @@ class Game {
   constructor(){
     this.canvas=document.querySelector('#gameCanvas');
     this.profile=DEVICE_PROFILE;this.isMobile=this.profile.isMobile;this.performanceMode=this.profile.performanceMode;document.body.classList.toggle('performance-mode',this.performanceMode);document.body.classList.toggle('touch-mode',this.isMobile);
-    this.renderer=new THREE.WebGLRenderer({canvas:this.canvas,antialias:!this.performanceMode&&!this.isMobile,powerPreference:'high-performance',alpha:false,stencil:false,preserveDrawingBuffer:false});
+    this.renderer=new THREE.WebGLRenderer({canvas:this.canvas,antialias:this.profile.mobileHd||(!this.performanceMode&&!this.isMobile),powerPreference:'high-performance',alpha:false,stencil:false,preserveDrawingBuffer:false});
     this.renderScale=this.profile.maxRenderScale;this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,this.renderScale));this.renderer.setSize(innerWidth,innerHeight,false);
     this.renderer.shadowMap.enabled=!this.performanceMode&&!this.isMobile;this.renderer.shadowMap.type=THREE.PCFShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=this.performanceMode?THREE.NoToneMapping:THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.06;
-    this.showroomCanvas=document.querySelector('#showroomCanvas');this.showroomRenderer=new THREE.WebGLRenderer({canvas:this.showroomCanvas,antialias:!this.performanceMode,alpha:false,powerPreference:'high-performance',stencil:false,preserveDrawingBuffer:false});this.showroomRenderer.outputColorSpace=THREE.SRGBColorSpace;this.showroomRenderer.toneMapping=this.performanceMode?THREE.NoToneMapping:THREE.ACESFilmicToneMapping;this.showroomRenderer.toneMappingExposure=1.08;this.showroomRenderer.shadowMap.enabled=!this.performanceMode;this.showroomRenderer.shadowMap.type=THREE.PCFShadowMap;
+    this.showroomCanvas=document.querySelector('#showroomCanvas');this.showroomRenderer=new THREE.WebGLRenderer({canvas:this.showroomCanvas,antialias:this.profile.mobileHd||!this.performanceMode,alpha:false,powerPreference:'high-performance',stencil:false,preserveDrawingBuffer:false});this.showroomRenderer.outputColorSpace=THREE.SRGBColorSpace;this.showroomRenderer.toneMapping=this.performanceMode?THREE.NoToneMapping:THREE.ACESFilmicToneMapping;this.showroomRenderer.toneMappingExposure=1.08;this.showroomRenderer.shadowMap.enabled=!this.performanceMode;this.showroomRenderer.shadowMap.type=THREE.PCFShadowMap;
     this.camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.1,this.performanceMode?760:1200);this.showroomCamera=new THREE.PerspectiveCamera(44,1,.1,80);this.showroomScene=null;
     this.clock=new THREE.Clock();this.textures=createTextures();this.audio=new AudioSystem();this.input={w:false,a:false,s:false,d:false,shift:false,steerAxis:0};
-    this.storage=this.loadStorage();this.selectedVehicle=0;this.selectedTrack=0;this.selectedDifficulty=this.storage.difficulty||'easy';this.steeringMode=localStorage.getItem('summitRushSteeringMode')==='arrows'?'arrows':'joystick';this.releaseSteeringJoystick=null;
+    this.storage=this.loadStorage();this.selectedVehicle=0;this.selectedTrack=0;this.selectedDifficulty=this.storage.difficulty||'easy';this.steeringMode=localStorage.getItem('summitRushSteeringMode')==='arrows'?'arrows':'joystick';this.mobileGraphicsMode=this.profile.mobileHd?'hd':'performance';this.releaseSteeringJoystick=null;
     this.state='loading';this.multiplayerMode=false;this.lanMultiplayerAvailable=false;this.currentRaceId=null;this.networkRacers=new Map();this.networkSendTimer=0;this.scene=null;this.previewCar=null;this.track=null;this.player=null;this.racers=[];this.finishers=[];this.raceTime=0;this.countdown=0;this.cameraShake=0;this.menuOrbit=0;this.hudTimer=0;this.boostFxState=false;
     this.frameInterval=1000/this.profile.targetFps;this.lastFrameStamp=0;this.resizeQueued=false;this.perfFrames=0;this.perfElapsed=0;this.minimapStatic=null;this.minimapMetrics=null;
     this.tmpForward=new THREE.Vector3();this.tmpDesired=new THREE.Vector3();this.tmpLook=new THREE.Vector3();this.tmpImpulseTangent=new THREE.Vector3();this.tmpCollisionNormal=new THREE.Vector3();this.tmpRelativeVelocity=new THREE.Vector3();this.tmpCollisionTangent=new THREE.Vector3();
-    this.ui=this.bindUI();this.setSteeringMode(this.steeringMode,false);this.buildMenuCards();this.bindEvents();this.buildMenuScene();this.loadNetworkInfo();this.multiplayer=new MultiplayerClient(this);
+    this.ui=this.bindUI();this.setSteeringMode(this.steeringMode,false);this.setMobileGraphicsMode(this.mobileGraphicsMode,false);this.buildMenuCards();this.bindEvents();this.buildMenuScene();this.loadNetworkInfo();this.multiplayer=new MultiplayerClient(this);
     setTimeout(()=>{this.ui.loading.classList.add('hidden');this.state='home';},650);this.animate();
   }
   bindUI(){
@@ -1077,7 +1083,7 @@ class Game {
       singlePlayer:$('#singlePlayerButton'),multiplayerButton:$('#multiplayerButton'),singleBack:$('#singleBackButton'),multiBack:$('#multiBackButton'),
       vehicleCards:$('#vehicleCards'),trackCards:$('#trackCards'),difficultyCards:$('#difficultyCards'),start:$('#startRaceButton'),resume:$('#resumeButton'),restart:$('#restartButton'),quit:$('#quitButton'),raceAgain:$('#raceAgainButton'),garage:$('#garageButton'),multiplayerNext:$('#multiplayerNextButton'),
       menuWins:$('#menuWins'),menuRaces:$('#menuRaces'),position:$('#positionText'),lap:$('#lapText'),time:$('#raceTimeText'),speed:$('#speedText'),gear:$('#gearText'),boostFill:$('#boostFill'),boostLabel:$('#boostLabel'),trackName:$('#trackNameHud'),
-      startLights:$('#startLights'),lightRig:document.querySelector('.light-rig'),countdown:$('#countdownText'),message:$('#raceMessage'),speedFx:$('#speedFx'),mobileControls:$('#mobileControls'),racePause:$('#racePauseButton'),steeringJoystick:$('#steeringJoystick'),steeringArrows:$('#steeringArrows'),joystickThumb:$('#joystickThumb'),steeringModeJoystick:$('#steeringModeJoystick'),steeringModeArrows:$('#steeringModeArrows'),multiplayerRaceLabel:$('#multiplayerRaceLabel'),multiplayerRaceRoom:$('#multiplayerRaceRoom'),
+      startLights:$('#startLights'),lightRig:document.querySelector('.light-rig'),countdown:$('#countdownText'),message:$('#raceMessage'),speedFx:$('#speedFx'),mobileControls:$('#mobileControls'),racePause:$('#racePauseButton'),steeringJoystick:$('#steeringJoystick'),steeringArrows:$('#steeringArrows'),joystickThumb:$('#joystickThumb'),steeringModeJoystick:$('#steeringModeJoystick'),steeringModeArrows:$('#steeringModeArrows'),mobileGraphicsPerformance:$('#mobileGraphicsPerformance'),mobileGraphicsHd:$('#mobileGraphicsHd'),multiplayerRaceLabel:$('#multiplayerRaceLabel'),multiplayerRaceRoom:$('#multiplayerRaceRoom'),
       resultEyebrow:$('#resultEyebrow'),resultTitle:$('#resultTitle'),resultPosition:$('#resultPosition'),resultTime:$('#resultTime'),resultWins:$('#resultWins'),resultThirdLabel:$('#resultThirdLabel'),standings:$('#standings'),minimap:$('#minimap'),
       bodyColor:$('#bodyColor'),trimColor:$('#trimColor'),wheelColor:$('#wheelColor'),presetColors:$('#presetColors'),rimOptions:$('#rimOptions'),showroomName:$('#showroomName'),showroomClass:$('#showroomClass'),showroomCanvas:$('#showroomCanvas'),
       phoneConnectCard:$('#phoneConnectCard'),phoneConnectStatus:$('#phoneConnectStatus'),phoneUrl:$('#phoneUrl'),phoneHint:$('#phoneHint'),copyPhoneUrl:$('#copyPhoneUrl'),homePhoneUrl:$('#homePhoneUrl'),homePhoneHint:$('#homePhoneHint'),
@@ -1181,6 +1187,21 @@ class Game {
     if(persist)localStorage.setItem('summitRushSteeringMode',this.steeringMode);
     this.resetInputs();
   }
+  setMobileGraphicsMode(mode,persist=true){
+    this.mobileGraphicsMode=mode==='hd'?'hd':'performance';
+    const hd=this.mobileGraphicsMode==='hd';
+    document.body.classList.toggle('mobile-hd-mode',hd);
+    this.ui.mobileGraphicsHd?.classList.toggle('selected',hd);
+    this.ui.mobileGraphicsPerformance?.classList.toggle('selected',!hd);
+    this.ui.mobileGraphicsHd?.setAttribute('aria-pressed',String(hd));
+    this.ui.mobileGraphicsPerformance?.setAttribute('aria-pressed',String(!hd));
+    if(persist){
+      localStorage.setItem('summitRushMobileGraphics',this.mobileGraphicsMode);
+      // Renderer antialiasing is a context-creation option, so reload once when
+      // changing modes. The race/menu state is intentionally not persisted.
+      if(hd!==this.profile.mobileHd)location.reload();
+    }
+  }
   bindEvents(){
     addEventListener('resize',()=>this.scheduleResize(),{passive:true});
     addEventListener('orientationchange',()=>setTimeout(()=>this.scheduleResize(),120),{passive:true});
@@ -1196,6 +1217,8 @@ class Game {
     this.ui.bodyColor?.addEventListener('input',e=>this.setCustomization({bodyColor:e.target.value}));this.ui.trimColor?.addEventListener('input',e=>this.setCustomization({trimColor:e.target.value}));this.ui.wheelColor?.addEventListener('input',e=>this.setCustomization({wheelColor:e.target.value}));
     this.ui.steeringModeJoystick?.addEventListener('click',()=>this.setSteeringMode('joystick'));
     this.ui.steeringModeArrows?.addEventListener('click',()=>this.setSteeringMode('arrows'));
+    this.ui.mobileGraphicsPerformance?.addEventListener('click',()=>this.setMobileGraphicsMode('performance'));
+    this.ui.mobileGraphicsHd?.addEventListener('click',()=>this.setMobileGraphicsMode('hd'));
     this.bindTouchControls();
   }
   bindTouchControls(){
@@ -1246,7 +1269,7 @@ class Game {
   disposeObject(root){if(!root)return;root.parent?.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose?.();if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.dispose?.());}});}
   clearScene(){if(!this.scene)return;this.scene.traverse(o=>{if(o.geometry)o.geometry.dispose?.();if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.dispose?.());}});this.scene.clear();this.minimapStatic=null;this.minimapMetrics=null;}
   clearShowroom(){if(!this.showroomScene)return;this.showroomScene.traverse(o=>{if(o.geometry)o.geometry.dispose?.();if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.dispose?.());}});this.showroomScene.clear();this.showroomScene=null;this.previewCar=null;}
-  resizeShowroom(){if(!this.showroomCanvas||!this.showroomRenderer)return;const rect=this.showroomCanvas.getBoundingClientRect(),w=Math.max(1,Math.round(rect.width)),h=Math.max(1,Math.round(rect.height));this.showroomRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1,this.isMobile?0.62:(this.performanceMode?0.82:1.25)));this.showroomRenderer.setSize(w,h,false);this.showroomCamera.aspect=w/h;this.showroomCamera.updateProjectionMatrix();}
+  resizeShowroom(){if(!this.showroomCanvas||!this.showroomRenderer)return;const rect=this.showroomCanvas.getBoundingClientRect(),w=Math.max(1,Math.round(rect.width)),h=Math.max(1,Math.round(rect.height));this.showroomRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1,this.isMobile?(this.profile.mobileHd?1.1:0.72):(this.performanceMode?0.82:1.25)));this.showroomRenderer.setSize(w,h,false);this.showroomCamera.aspect=w/h;this.showroomCamera.updateProjectionMatrix();}
   createBaseScene(){
     this.scene=new THREE.Scene();const hemi=new THREE.HemisphereLight(0xc9e3ff,0x27301d,2.25);this.scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff1d6,this.performanceMode?2.55:3.05);sun.position.set(-75,110,-45);sun.castShadow=!this.performanceMode&&!this.isMobile;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-220;sun.shadow.camera.right=220;sun.shadow.camera.top=220;sun.shadow.camera.bottom=-220;sun.shadow.camera.near=1;sun.shadow.camera.far=380;sun.shadow.bias=-.00015;this.scene.add(sun);
   }
@@ -1359,7 +1382,7 @@ class Game {
   returnToMenu(){if(this.multiplayerMode){this.returnToMultiplayerLobby();return;}this.state='menu';document.body.classList.remove('race-mode');this.resetInputs();this.ui.mobileControls?.classList.add('controls-hidden');this.ui.pauseMenu.classList.remove('active');this.ui.resultsMenu.classList.remove('active');this.ui.hud.classList.remove('active');this.showScreen('single');this.ui.speedFx.classList.remove('active');this.canvas.style.filter='none';this.boostFxState=false;this.audio.update(0,0,false,false);this.buildMenuScene();}
   applyRenderScale(){this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,this.renderScale));this.renderer.setSize(innerWidth,innerHeight,false);}
   updateAdaptiveQuality(dt){if(!this.performanceMode||(this.state!=='racing'&&this.state!=='countdown'))return;this.perfFrames++;this.perfElapsed+=dt;if(this.perfElapsed<2.5)return;const fps=this.perfFrames/Math.max(this.perfElapsed,.001),target=this.profile.targetFps;let next=this.renderScale;if(fps<target-8)next-=.09;else if(fps<target-3)next-=.045;else if(fps>target+1.5)next+=.018;next=clamp(next,this.profile.minRenderScale,this.profile.maxRenderScale);if(Math.abs(next-this.renderScale)>.015){this.renderScale=next;this.applyRenderScale();}this.perfFrames=0;this.perfElapsed=0;}
-  resize(){this.isMobile=matchMedia('(pointer: coarse)').matches||innerWidth<=900;this.performanceMode=DEVICE_PROFILE.performanceMode||this.isMobile;document.body.classList.toggle('performance-mode',this.performanceMode);document.body.classList.toggle('touch-mode',this.isMobile);const maxScale=this.isMobile?Math.min(this.profile.maxRenderScale,.8):(this.performanceMode?this.profile.maxRenderScale:1.45);this.renderScale=Math.min(this.renderScale,maxScale);this.renderer.shadowMap.enabled=!this.performanceMode&&!this.isMobile;this.applyRenderScale();this.camera.aspect=Math.max(innerWidth,1)/Math.max(innerHeight,1);this.camera.far=this.performanceMode?760:1200;this.camera.updateProjectionMatrix();this.resizeShowroom();}
+  resize(){this.isMobile=matchMedia('(pointer: coarse)').matches||innerWidth<=900;this.performanceMode=DEVICE_PROFILE.performanceMode||this.isMobile;document.body.classList.toggle('performance-mode',this.performanceMode);document.body.classList.toggle('touch-mode',this.isMobile);const maxScale=this.isMobile?this.profile.maxRenderScale:(this.performanceMode?this.profile.maxRenderScale:1.45);this.renderScale=Math.min(this.renderScale,maxScale);this.renderer.shadowMap.enabled=!this.performanceMode&&!this.isMobile;this.applyRenderScale();this.camera.aspect=Math.max(innerWidth,1)/Math.max(innerHeight,1);this.camera.far=this.performanceMode?760:1200;this.camera.updateProjectionMatrix();this.resizeShowroom();}
   formatTime(t){const m=Math.floor(t/60),s=Math.floor(t%60),ms=Math.floor((t%1)*1000);return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;}
   ordinal(n){return `${n}${n===1?'ST':n===2?'ND':n===3?'RD':'TH'}`;}
   animate(timestamp=performance.now()){

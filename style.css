@@ -1025,3 +1025,13 @@ body.steering-joystick-mode .steering-arrows { display: none !important; }
   .steering-arrow-button { width: 60px !important; height: 74px !important; }
   .steering-arrow-button span { font-size: 27px !important; }
 }
+
+
+/* v1.7.8 mobile HD rendering controls */
+body:not(.touch-mode) .mobile-graphics-settings { display: none; }
+body.touch-mode.mobile-hd-mode #gameCanvas { image-rendering: auto; }
+.mobile-graphics-settings .steering-mode-button.selected strong { color: #fff; }
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+  .mobile-graphics-settings { margin-top: -8px; }
+  .mobile-graphics-settings .pause-setting-heading small { max-width: 270px; text-align: right; line-height: 1.25; }
+}
