@@ -1,0 +1,39 @@
+name: Apply Summit Rush v1.7.7 mobile fixes
+
+on:
+  push:
+    paths:
+      - '.github/patch-v177.py'
+      - '.github/workflows/apply-v177-mobile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply patch
+        run: python .github/patch-v177.py
+      - name: Validate
+        run: |
+          node --check game.js
+          node --check server.js
+          grep -q 'v1.7.7 larger mobile steering controls' style.css
+          grep -q 'game.js?v=1.7.7' index.html
+          node -e "const p=require('./package.json'); if(p.version!=='1.7.7') process.exit(1)"
+      - name: Commit clean update
+        run: |
+          git config user.name 'Summit Rush Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm -f .github/patch-v177.py .github/workflows/apply-v177-mobile.yml
+          git add game.js style.css index.html package.json README.md
+          git commit -m 'Improve mobile steering controls and chase camera'
+          git push
