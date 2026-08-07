@@ -1,4 +1,13 @@
-# Summit Rush v1.7.6
+# Summit Rush v1.7.7
+
+
+## v1.7.7 — Larger mobile controls + closer camera
+
+- Increased the landscape analog joystick ring and thumb size for easier steering on phones.
+- Increased the Left / Right steering button hit areas and arrow icons.
+- Kept both control schemes larger even on short-height landscape phones where older media rules previously shrank them.
+- Pulled the mobile chase camera closer at normal and high speed.
+- Reduced boost camera pullback and FOV expansion so the car stays more prominent on screen.
 
 ## v1.7.5 circuit, UI, and race-pace fixes
 

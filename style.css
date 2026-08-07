@@ -1003,3 +1003,25 @@ body.steering-joystick-mode .steering-arrows { display: none !important; }
   .steering-mode-button { min-height: 48px; padding: 7px 8px; }
   .steering-mode-button strong { font-size: 14px; }
 }
+
+
+/* v1.7.7 larger mobile steering controls */
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+  .steering-joystick { width: 140px; }
+  .joystick-ring { width: 126px; height: 126px; }
+  .joystick-thumb { width: 60px; height: 60px; }
+  .steering-arrows { width: 154px; }
+  .steering-arrow-row { gap: 10px; }
+  .steering-arrow-button { width: 70px !important; height: 86px !important; border-radius: 20px !important; }
+  .steering-arrow-button span { font-size: 31px !important; }
+}
+
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 430px) {
+  .steering-joystick { width: 116px; }
+  .joystick-ring { width: 102px; height: 102px; }
+  .joystick-thumb { width: 50px; height: 50px; }
+  .steering-arrows { width: 132px; }
+  .steering-arrow-row { gap: 8px; }
+  .steering-arrow-button { width: 60px !important; height: 74px !important; }
+  .steering-arrow-button span { font-size: 27px !important; }
+}

@@ -1,8 +1,8 @@
 {
   "name": "summit-rush-threejs-racer",
-  "version": "1.7.6",
+  "version": "1.7.7",
   "private": true,
-  "description": "Landscape-first Three.js racing game with 12-car grids, persistent randomized AI racing lines, collision recovery, radius-based corner speed, eight circuits, customization, hosted single-player deployment detection, and same-Wi-Fi room multiplayer.",
+  "description": "Landscape-first Three.js racing game with larger mobile joystick/arrow controls, a closer mobile chase camera, 12-car grids, persistent randomized AI racing lines, collision recovery, radius-based corner speed, eight circuits, customization, hosted single-player deployment detection, and same-Wi-Fi room multiplayer.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
